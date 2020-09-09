@@ -1,36 +1,30 @@
-# SemiMNIST
+# Semi Supervised Learning on MNIST Dataset
 Overview of Model
 =================
-Our model trains a single feed-forward convolutional model on 3000 labeled examples
-from the MNIST dataset, but prevents overfitting by regularizing the model with
-noise and by adding a reconstruction loss when running the model on unlabeled data.
-Our model is inspired by Ladder Networks (Ramus et al. 2015, https://arxiv.org/abs/1507.02672;
-Pezeshki et al. 2016, https://arxiv.org/pdf/1511.06430.pdf).
+1) Apply Augmentation techniques on the limited training data to extrapolate them during
+the training.
 
-We first have a supervised loss based on the model's ability to correctly classify
-the image. We found that utilizing data augmentation techniques (rotations and translations),
-as well as by adding gaussian noise to multiple layers of the model, we were able
-better prevent overfitting on the small labeled dataset.
-
-We further regularize the model by utilizing the unlabeled data through a second
+2) Further regularize the model by utilizing the unlabeled data through a second
 loss based on the model's ability to de-noise an image that has added gaussian noise
-on multiple layers of the model. We do this by running two more copies of the model
+on multiple layers of the model. 
+
+3) We do this by running two more copies of the model
 used for supervised classification (share weights), one copy runs a "clean" version
 without noise and another copy runs a "noisy" version with added gaussian noise.
-We then define the reconstruction loss as the mean squared error between the
+
+4) We then define the reconstruction loss as the mean squared error between the
 final outputs of the noisy and clean versions of the unlabeled data.
-De-noising helps regularize the model, as it encourages the model to find features
+
+5) De-noising helps regularize the model, as it encourages the model to find features
 that are robust to noise.
 
-Thus within one training step, we run the same convolutional model three times
+6) Thus within one training step, we run the same convolutional model three times
 (supervised, clean unsupervised, noisy unsupervised), which gives us two loss
 values that we add, and then backpropagate the error.
 
 Requirements
 ============
-Our model requires PyTorch 0.1.10 and scipy 0.19.0.
-The pickle data files are not included in this repository as they are too large
-(see https://inclass.kaggle.com/c/mnist-digit-recognition-assignment-1/data).
+pip install -r requirements.txt
 
 How to Run / Alter Code
 =======================
@@ -55,8 +49,6 @@ Optional Arguments
   --param-file : file to read model definition from (default model_param.txt)  
   --save : file name to save best validation model as (default "model.pt")  
 
-The details for how to specify model structure are defined in model_param.txt.
-
 Performance
 ===========
-Training on default parameters on cuda yields a maximum validation accuracy of 99.41%.
+Training on default parameters on cuda yields a maximum validation accuracy of 97%.(30 Epochs)
