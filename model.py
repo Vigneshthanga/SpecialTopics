@@ -34,7 +34,7 @@ class ConvNet(nn.Module):
         for m in range(len(self.layer_modules)):
             # add noise
             if corrupted and self.noise[m] > 0:
-                x = x + to_gpu(Variable(torch.normal(means=torch.zeros(x.size()), std=torch.zeros(x.size()).fill_(self.noise[m]))), cuda)
+                x = x + Variable(torch.normal(mean=torch.zeros(x.size()), std=torch.zeros(x.size()).fill_(self.noise[m])))
             # convolutional or pooling layer
             x = self.layer_modules[m](x)
             # batch normalization

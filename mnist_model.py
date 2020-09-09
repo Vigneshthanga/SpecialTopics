@@ -38,8 +38,8 @@ parser.add_argument('--decay', type=float, default=0.8, metavar='LR',
                     help='learning rate decay factor (< 1)')
 parser.add_argument('--decay_interval', type=int, default=50,
                     help='learning rate decay interval')
-parser.add_argument('--cuda', action='store_true',
-                    help='enables CUDA training')
+#parser.add_argument('--cuda', action=False,
+#                    help='enables CUDA training')
 parser.add_argument('--seed', type=int, default=1, metavar='S',
                     help='random seed (default: 1)')
 parser.add_argument('--param-file', type=str, default="model_param.txt",
@@ -51,17 +51,19 @@ args = parser.parse_args()
 print(args)
 
 torch.manual_seed(args.seed)
-if args.cuda:
-    torch.cuda.manual_seed(args.seed)
-elif torch.cuda.is_available():
-    print("Cuda is available. Add --cuda argument to enable!")
+#if args.cuda:
+#    torch.cuda.manual_seed(args.seed)
+#elif torch.cuda.is_available():
+#    print("Cuda is available. Add --cuda argument to enable!")
 
-kwargs = {'num_workers': 1, 'pin_memory': True} if args.cuda else {}
+#kwargs = {'num_workers': 1, 'pin_memory': True} if args.cuda else {}
+
+kwargs = {}
 
 print('Loading Data!')
-trainset_labeled = pickle.load(open("train_labeled.p", "rb"))
-trainset_unlabeled = pickle.load(open("train_unlabeled.p", "rb"))
-validation_labeled = pickle.load(open("validation.p", "rb"))
+trainset_labeled = pickle.load(open("data/train_labeled.p", "rb"))
+trainset_unlabeled = pickle.load(open("data/train_unlabeled.p", "rb"))
+validation_labeled = pickle.load(open("data/validation.p", "rb"))
 
 trainset_unlabeled.train_labels = [-1 for i in range(len(trainset_unlabeled.train_data))]     # Unlabeled!!
 trainset_unlabeled.k = len(trainset_unlabeled.train_labels)
@@ -80,8 +82,8 @@ layers = parse_layers_from_file(args.param_file)
 noise = [float(x) for x in args.noise.split(",")]
 model = model.ConvNet(layers, noise)
 
-if args.cuda:
-    model.cuda()
+#if args.cuda:
+#    model.cuda()
 
 optimizer = optim.Adam(model.parameters(), lr=args.lr, weight_decay=0.0001)
 mse = nn.MSELoss(size_average=True) # mse loss for reconstruction error
@@ -91,11 +93,11 @@ def validation(epoch):
     validation_loss = 0
     correct = 0
     for batch_idx, (data, target) in enumerate(validation_loader):
-        if args.cuda:
-            data, target = data.cuda(), target.cuda()
-        data, target = to_gpu(Variable(data, volatile=True), args.cuda), to_gpu(Variable(target), args.cuda)
-        output, laterals = model(data, corrupted=False, cuda=args.cuda)
-        validation_loss += F.cross_entropy(output, target).data[0] # no reconstruction loss
+        #if args.cuda:
+        #    data, target = data.cuda(), target.cuda()
+        data, target = Variable(data, volatile=True), Variable(target)
+        output, laterals = model(data, corrupted=False)
+        validation_loss += F.cross_entropy(output, target).data # no reconstruction loss
         pred = output.data.max(1)[1] # get the index of the max log-probability
         correct += pred.eq(target.data).cpu().sum()
 
@@ -115,12 +117,12 @@ def train(epoch):
         if args.augment:
             data = augment(data) # augment labeled data
 
-        data, target = to_gpu(Variable(data), args.cuda), to_gpu(Variable(target), args.cuda)
+        data, target = Variable(data), Variable(target)
 
         optimizer.zero_grad()
 
         # supervised model
-        outputs, laterals = model(data, corrupted=True, cuda=args.cuda)
+        outputs, laterals = model(data, corrupted=True)
 
         # supervised loss
         loss = F.cross_entropy(outputs, target)
@@ -134,7 +136,7 @@ def train(epoch):
         if batch_idx % 10 == 0:
             print('Train Epoch: {} [{}/{} ({:.00f}%)]\tLoss: {:.6f}'.format(
                 epoch, batch_idx * len(data), len(train_loader.dataset),
-                100. * batch_idx / len(train_loader), loss.data[0]))
+                100. * batch_idx / len(train_loader), loss.data))
 
     print('Accuracy: {}/{} ({:.2f}%)'.format(
         correct, len(train_loader.dataset),
@@ -149,17 +151,17 @@ def train_semi(epoch):
         if args.augment:
             data = augment(data) # augment labeled data
 
-        data, target = to_gpu(Variable(data), args.cuda), to_gpu(Variable(target), args.cuda)
-        data_unlabeled = to_gpu(Variable(data_unlabeled), args.cuda)
+        data, target = Variable(data), Variable(target)
+        data_unlabeled = Variable(data_unlabeled)
 
         optimizer.zero_grad()
 
         # supervised model
-        outputs, laterals = model(data, corrupted=True, cuda=args.cuda)
+        outputs, laterals = model(data, corrupted=True)
 
         # clean and noisey version of model on unlabeled data
-        outputs_clean, laterals_clean = model(data_unlabeled, corrupted=False, cuda=args.cuda)
-        outputs_corrupted, laterals_corrupted = model(data_unlabeled, corrupted=True, cuda=args.cuda)
+        outputs_clean, laterals_clean = model(data_unlabeled, corrupted=False)
+        outputs_corrupted, laterals_corrupted = model(data_unlabeled, corrupted=True)
 
         # supervised loss
         loss = F.cross_entropy(outputs, target)
@@ -176,7 +178,7 @@ def train_semi(epoch):
         if batch_idx % 10 == 0:
             print('Train Epoch: {} [{}/{} ({:.00f}%)]\tLoss: {:.6f}'.format(
                 epoch, batch_idx * len(data), len(train_loader.dataset),
-                100. * batch_idx / len(train_loader), loss.data[0]))
+                float(100 * batch_idx) / len(train_loader), loss.data))
 
     print('Accuracy: {}/{} ({:.2f}%)'.format(
         correct, len(train_loader.dataset),
